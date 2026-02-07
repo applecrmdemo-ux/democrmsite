@@ -1,0 +1,111 @@
+You are working on an existing full-stack CRM demo project that I have uploaded.
+DO NOT rebuild from scratch. You must analyze the codebase and continue development.
+
+Project context:
+
+This is a full-stack CRM system for an Apple-style retail store focused on store management operations.
+
+Tech stack:
+
+* Frontend: React + Vite + Tailwind + Axios
+* Backend: Node.js + Express
+* Database: MongoDB (Mongoose)
+* API Base URL: [http://localhost:5000/api](http://localhost:5000/api)
+
+Existing modules implemented:
+
+* Customers
+* Products / Inventory
+* Repairs
+* Appointments
+* Dashboard stats
+
+Backend provides CRUD routes:
+
+* /api/customers
+* /api/products
+* /api/repairs
+* /api/appointments
+* /api/dashboard/stats
+
+Your responsibilities:
+
+STEP 1 — Understand the Codebase
+
+* Explore folder structure
+* Identify entry points
+* Confirm backend server starts correctly
+* Confirm frontend runs
+* Fix dependency or path issues
+* Ensure MongoDB connection works
+* Resolve ALL runtime or console errors
+
+STEP 2 — Stabilize the System
+
+* Verify frontend API calls match backend routes
+* Fix CORS issues if any
+* Ensure Axios base URL is correct
+* Add missing environment configs if needed
+* Ensure no broken imports or build errors
+
+STEP 3 — Upgrade UI to Professional Level
+Improve UI without breaking logic:
+
+* Enterprise dashboard layout
+* Sidebar navigation polish
+* Responsive tables
+* Loading indicators
+* Empty states
+* Error handling
+* Form validation
+* Clean spacing/typography
+
+STEP 4 — Add High-Value CRM Features
+Extend system by implementing:
+
+1️⃣ Orders / Sales Module
+
+* Create order
+* Link to customer
+* Reduce product stock
+* Store order history
+
+2️⃣ Analytics Charts
+
+* Sales trends
+* Inventory status
+* Repair status
+  Use Recharts or Chart.js
+
+3️⃣ Global Search
+
+* Search customers/products
+
+4️⃣ Pagination
+
+* Tables should not load all data at once
+
+STEP 5 — Code Quality Requirements
+
+* Keep modular architecture
+* Follow best practices
+* Do not duplicate logic
+* Add comments where necessary
+* Maintain existing structure
+* Ensure app runs with ZERO console errors
+
+STEP 6 — Deliverables
+After changes:
+
+* Explain what you modified
+* Show how to run project
+* Highlight new features added
+
+Important Constraints:
+
+* No authentication implementation required
+* Do NOT remove existing functionality
+* Do NOT redesign backend architecture completely
+* Focus on enhancement, not replacement
+
+Begin by analyzing the repository now.
