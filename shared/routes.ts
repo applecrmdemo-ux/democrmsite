@@ -4,12 +4,14 @@ import {
   insertProductSchema, 
   insertRepairSchema, 
   insertAppointmentSchema, 
+  insertLeadSchema,
   createOrderRequestSchema,
   customers,
   products,
   repairs,
   appointments,
-  orders
+  orders,
+  leads
 } from './schema';
 
 export const errorSchemas = {
@@ -26,6 +28,25 @@ export const errorSchemas = {
 };
 
 export const api = {
+  auth: {
+    login: {
+      method: 'POST' as const,
+      path: '/api/auth/login' as const,
+      input: z.object({
+        username: z.string(),
+        password: z.string(),
+      }),
+      responses: {
+        200: z.object({
+          user: z.object({
+            username: z.string(),
+            role: z.string(),
+          }),
+        }),
+        401: z.object({ message: z.string() }),
+      },
+    },
+  },
   customers: {
     list: {
       method: 'GET' as const,
@@ -84,21 +105,12 @@ export const api = {
         200: z.array(z.custom<typeof products.$inferSelect>()),
       },
     },
-    get: {
-      method: 'GET' as const,
-      path: '/api/products/:id' as const,
-      responses: {
-        200: z.custom<typeof products.$inferSelect>(),
-        404: errorSchemas.notFound,
-      },
-    },
     create: {
       method: 'POST' as const,
       path: '/api/products' as const,
       input: insertProductSchema,
       responses: {
         201: z.custom<typeof products.$inferSelect>(),
-        400: errorSchemas.validation,
       },
     },
     update: {
@@ -107,7 +119,6 @@ export const api = {
       input: insertProductSchema.partial(),
       responses: {
         200: z.custom<typeof products.$inferSelect>(),
-        404: errorSchemas.notFound,
       },
     },
     delete: {
@@ -115,7 +126,6 @@ export const api = {
       path: '/api/products/:id' as const,
       responses: {
         204: z.void(),
-        404: errorSchemas.notFound,
       },
     },
   },
@@ -128,15 +138,7 @@ export const api = {
         search: z.string().optional(),
       }).optional(),
       responses: {
-        200: z.array(z.custom<typeof repairs.$inferSelect>()), // Returns simple list, or with relations? Backend can handle
-      },
-    },
-    get: {
-      method: 'GET' as const,
-      path: '/api/repairs/:id' as const,
-      responses: {
-        200: z.custom<typeof repairs.$inferSelect>(),
-        404: errorSchemas.notFound,
+        200: z.array(z.custom<typeof repairs.$inferSelect>()),
       },
     },
     create: {
@@ -145,7 +147,6 @@ export const api = {
       input: insertRepairSchema,
       responses: {
         201: z.custom<typeof repairs.$inferSelect>(),
-        400: errorSchemas.validation,
       },
     },
     update: {
@@ -154,7 +155,6 @@ export const api = {
       input: insertRepairSchema.partial(),
       responses: {
         200: z.custom<typeof repairs.$inferSelect>(),
-        404: errorSchemas.notFound,
       },
     },
     delete: {
@@ -162,7 +162,38 @@ export const api = {
       path: '/api/repairs/:id' as const,
       responses: {
         204: z.void(),
-        404: errorSchemas.notFound,
+      },
+    },
+  },
+  leads: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/leads' as const,
+      responses: {
+        200: z.array(z.custom<typeof leads.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/leads' as const,
+      input: insertLeadSchema,
+      responses: {
+        201: z.custom<typeof leads.$inferSelect>(),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/leads/:id' as const,
+      input: insertLeadSchema.partial(),
+      responses: {
+        200: z.custom<typeof leads.$inferSelect>(),
+      },
+    },
+    convert: {
+      method: 'POST' as const,
+      path: '/api/leads/:id/convert' as const,
+      responses: {
+        200: z.object({ customerId: z.number() }),
       },
     },
   },
@@ -196,8 +227,7 @@ export const api = {
       path: '/api/orders' as const,
       input: createOrderRequestSchema,
       responses: {
-        201: z.custom<typeof orders.$inferSelect>(), // Returns the created order
-        400: errorSchemas.validation,
+        201: z.custom<typeof orders.$inferSelect>(),
       },
     },
     list: {
@@ -205,6 +235,13 @@ export const api = {
       path: '/api/orders' as const,
       responses: {
         200: z.array(z.custom<typeof orders.$inferSelect>()),
+      },
+    },
+    getInvoice: {
+      method: 'GET' as const,
+      path: '/api/orders/:id/invoice' as const,
+      responses: {
+        200: z.any(), // Detailed order object
       },
     },
   },
@@ -220,6 +257,7 @@ export const api = {
           activeRepairs: z.number(),
           totalRevenue: z.number(),
           monthlyRevenue: z.number(),
+          newLeads: z.number(),
         }),
       },
     },

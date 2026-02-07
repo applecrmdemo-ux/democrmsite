@@ -11,6 +11,9 @@ export const customers = pgTable("customers", {
   phone: text("phone"),
   email: text("email"),
   notes: text("notes").default(''),
+  segment: text("segment").default('New'), // New, VIP, Regular
+  warrantyInfo: text("warranty_info"),
+  reminderFlag: boolean("reminder_flag").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -19,8 +22,9 @@ export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   category: text("category"),
-  price: integer("price").notNull(), // stored in cents
+  price: integer("price").notNull(), 
   stock: integer("stock").notNull().default(0),
+  supplier: text("supplier"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -30,9 +34,10 @@ export const repairs = pgTable("repairs", {
   deviceName: text("device_name").notNull(),
   serialNumber: text("serial_number"),
   issueDescription: text("issue_description").default(''),
-  status: text("status").notNull().default('Pending'), // Pending, In Progress, Completed
+  status: text("status").notNull().default('Received'), // Received, Diagnosing, In Repair, Completed, Delivered
   technicianNotes: text("technician_notes").default(''),
-  amount: integer("amount").default(0), // stored in cents
+  technicianId: text("technician_id"), // Simulated tech assignment
+  amount: integer("amount").default(0),
   customerId: integer("customer_id").references(() => customers.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -40,10 +45,11 @@ export const repairs = pgTable("repairs", {
 
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
-  customerName: text("customer_name").notNull(), // Keeping as string to match legacy schema, though linking to customer would be better
+  customerName: text("customer_name").notNull(),
   date: timestamp("date").notNull(),
   time: text("time").notNull(),
   purpose: text("purpose").default(''),
+  staffId: text("staff_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -51,7 +57,8 @@ export const appointments = pgTable("appointments", {
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   customerId: integer("customer_id").references(() => customers.id).notNull(),
-  total: integer("total").notNull(), // stored in cents
+  total: integer("total").notNull(),
+  paymentStatus: text("payment_status").default('Pending'), // Pending, Paid
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -61,6 +68,18 @@ export const orderItems = pgTable("order_items", {
   orderId: integer("order_id").references(() => orders.id).notNull(),
   productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
+});
+
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  interest: text("interest"), // Product or Service
+  status: text("status").default('New'), // New, Contacted, Converted, Lost
+  callbackRequested: boolean("callback_requested").default(false),
+  notes: text("notes").default(''),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // === RELATIONS ===
@@ -108,6 +127,7 @@ export const insertRepairSchema = createInsertSchema(repairs).omit({ id: true, c
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
+export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
 
 // === TYPES ===
 
@@ -129,19 +149,21 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+
 // === API CONTRACT TYPES ===
 
-// Create Order Request (Complex)
 export const createOrderRequestSchema = z.object({
   customerId: z.number(),
   items: z.array(z.object({
     productId: z.number(),
     quantity: z.number().min(1)
-  }))
+  })),
+  paymentStatus: z.string().optional()
 });
 export type CreateOrderRequest = z.infer<typeof createOrderRequestSchema>;
 
-// Responses with Relations
 export type OrderWithDetails = Order & {
   customer: Customer;
   items: (OrderItem & { product: Product })[];
@@ -151,7 +173,6 @@ export type RepairWithCustomer = Repair & {
   customer: Customer | null;
 };
 
-// Dashboard Stats
 export type DashboardStats = {
   totalCustomers: number;
   totalProducts: number;
@@ -159,4 +180,5 @@ export type DashboardStats = {
   activeRepairs: number;
   totalRevenue: number;
   monthlyRevenue: number;
+  newLeads: number;
 };

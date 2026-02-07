@@ -1,0 +1,193 @@
+You are working on an existing full-stack CRM demo project that has already been uploaded.
+
+IMPORTANT:
+
+* Do NOT rebuild the project from scratch
+* Analyze and extend the current codebase
+* Keep existing architecture and modules intact
+* Ensure everything runs without runtime or console errors
+
+Tech Stack (already in project):
+Frontend: React + Vite + Tailwind + Axios
+Backend: Node.js + Express
+Database: MongoDB + Mongoose
+API Base: /api/*
+
+====================================================
+STEP 1 — Stabilize System
+=========================
+
+1. Explore entire repository structure
+2. Ensure backend starts correctly
+3. Ensure frontend runs
+4. Fix dependency issues
+5. Fix broken imports
+6. Fix API mismatches
+7. Verify MongoDB connection
+8. Resolve ALL console errors
+
+====================================================
+STEP 2 — Implement Login System (Simple Demo Only)
+==================================================
+
+Do NOT build full authentication.
+
+Create a lightweight role-based login simulation using hardcoded credentials:
+
+Owner/Admin
+username: admin
+password: password
+
+Sales Staff
+username: salesman
+password: password
+
+Technician
+username: tech
+password: password
+
+Manager
+username: manager
+password: password
+
+Customer
+username: customer
+password: password
+
+Requirements:
+
+* Login page UI
+* Role stored in local state/session
+* Redirect to role-based dashboard
+* No JWT or hashing required
+* Clean professional UI
+
+====================================================
+STEP 3 — Implement FULL CRM MODULES
+===================================
+
+Make all modules fully functional with UI + API + DB integration.
+
+🧑‍💼 Customer Management
+
+* Add/edit/delete customers
+* Contact storage
+* Purchase history tracking
+* Warranty tracking field
+* Segment tagging (New/VIP/etc)
+* Reminder flag support
+
+📦 Product & Inventory
+
+* Product catalog CRUD
+* Stock tracking
+* Low stock alerts
+* Supplier field
+* Sales trend stats support
+
+🛒 Sales & Billing
+
+* Record sales orders
+* Link to customers
+* Reduce inventory automatically
+* Generate invoice view
+* Payment status tracking
+* Sales analytics
+
+🛠 Service & Repair
+
+* Create repair ticket
+* Track serial/IMEI
+* Assign technician
+* Status pipeline:
+  Received
+  Diagnosing
+  In Repair
+  Completed
+  Delivered
+* Notes history
+
+💬 Leads & Enquiries
+
+* Capture enquiries
+* Call-back tracking
+* Product interest tagging
+* Convert lead → customer
+
+📅 Appointment Scheduling
+
+* Book repair/demo
+* Calendar-style UI
+* Conflict detection
+* Staff visibility
+
+📊 Dashboard Analytics
+Show:
+
+* Revenue overview
+* Best-selling products
+* Active repairs
+* Customer growth
+* Inventory alerts
+
+Use chart library (Recharts preferred)
+
+====================================================
+STEP 4 — Architecture Integration Rules
+=======================================
+
+Ensure module interaction:
+
+Customer purchase
+→ Sales module records
+→ Inventory reduces stock
+→ Customer history updated
+→ Dashboard analytics update
+
+Repair booking
+→ Appointment created
+→ Repair record created
+→ Status tracking enabled
+
+Central MongoDB database shared across modules
+
+====================================================
+STEP 5 — UI/UX QUALITY
+======================
+
+Upgrade to enterprise-level dashboard:
+
+* Sidebar layout
+* Responsive tables
+* Modals/forms
+* Loading indicators
+* Error states
+* Pagination
+* Global search
+* Clean spacing
+* Consistent theme
+
+====================================================
+STEP 6 — Code Quality
+=====================
+
+* Modular structure
+* No duplicated logic
+* Proper API separation
+* Comments where useful
+* Maintainability prioritized
+* Zero console errors
+
+====================================================
+STEP 7 — Deliverables
+=====================
+
+After completion provide:
+
+1. Summary of changes
+2. How to run instructions
+3. New routes added
+4. New DB models added
+5. UI pages created
+
+BEGIN BY ANALYZING THE REPOSITORY NOW.
