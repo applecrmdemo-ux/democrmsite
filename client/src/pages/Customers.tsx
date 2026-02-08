@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useCustomers, useCreateCustomer, useDeleteCustomer, useUpdateCustomer } from "@/hooks/use-customers";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { insertCustomerSchema, type InsertCustomer } from "@shared/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,7 +31,9 @@ function CustomerForm({ customer, open, onOpenChange }: { customer?: any, open: 
       name: "",
       email: "",
       phone: "",
-      notes: ""
+      notes: "",
+      segment: "New",
+      reminderFlag: false,
     }
   });
 
@@ -116,6 +121,40 @@ function CustomerForm({ customer, open, onOpenChange }: { customer?: any, open: 
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="segment"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Segment</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "New"}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="New">New</SelectItem>
+                      <SelectItem value="Repeat">Repeat</SelectItem>
+                      <SelectItem value="VIP">VIP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="reminderFlag"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center gap-2">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Reminder flag</FormLabel>
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit" disabled={isPending}>
@@ -134,11 +173,12 @@ export default function Customers() {
   const { data: customers, isLoading } = useCustomers(search);
   const deleteMutation = useDeleteCustomer();
   const { toast } = useToast();
+  const { canWrite, canDelete } = usePermissions();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this customer?")) {
       try {
         await deleteMutation.mutateAsync(id);
@@ -161,9 +201,11 @@ export default function Customers() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto shadow-lg shadow-primary/20">
-          <Plus className="mr-2 h-4 w-4" /> Add Customer
-        </Button>
+        {canWrite("customers") && (
+          <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto shadow-lg shadow-primary/20">
+            <Plus className="mr-2 h-4 w-4" /> Add Customer
+          </Button>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -219,21 +261,27 @@ export default function Customers() {
                     {customer.createdAt ? format(new Date(customer.createdAt), "MMM d, yyyy") : "-"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(customer.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(canWrite("customers") || canDelete("customers")) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canWrite("customers") && (
+                            <DropdownMenuItem onClick={() => setEditingCustomer(customer)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete("customers") && (
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(customer.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

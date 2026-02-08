@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/use-products";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Currency } from "@/components/Currency";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 
 // Extended schema to handle dollar input (converted to cents)
@@ -32,12 +34,13 @@ function ProductForm({ product, open, onOpenChange }: { product?: any, open: boo
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
       ...product,
-      price: product.price / 100 // Convert cents to dollars for display
+      price: product.price / 100
     } : {
       name: "",
       category: "",
       price: 0,
-      stock: 0
+      stock: 0,
+      supplier: ""
     }
   });
 
@@ -90,19 +93,32 @@ function ProductForm({ product, open, onOpenChange }: { product?: any, open: boo
               )}
             />
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Accessories" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Accessories" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="supplier"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Supplier</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Supplier name" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
               <FormField
                 control={form.control}
                 name="stock"
@@ -148,14 +164,16 @@ function ProductForm({ product, open, onOpenChange }: { product?: any, open: boo
 
 export default function Products() {
   const [search, setSearch] = useState("");
-  const { data: products, isLoading } = useProducts(search);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const { data: products, isLoading } = useProducts(search, lowStockOnly);
   const deleteMutation = useDeleteProduct();
   const { toast } = useToast();
+  const { canWrite, canDelete, canEditInventoryStock } = usePermissions();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Delete this product?")) {
       await deleteMutation.mutateAsync(id);
       toast({ title: "Deleted", description: "Product removed" });
@@ -174,9 +192,17 @@ export default function Products() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto shadow-lg shadow-primary/20">
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={lowStockOnly} onCheckedChange={(v) => setLowStockOnly(!!v)} />
+            Low stock only
+          </label>
+          {canWrite("inventory") && (
+            <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto shadow-lg shadow-primary/20">
+              <Plus className="mr-2 h-4 w-4" /> Add Product
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -221,21 +247,27 @@ export default function Products() {
                     <span className="ml-2 text-xs text-muted-foreground">({product.stock} units)</span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditingProduct(product)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(canWrite("inventory") || canDelete("inventory")) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canWrite("inventory") && (
+                            <DropdownMenuItem onClick={() => setEditingProduct(product)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete("inventory") && (
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

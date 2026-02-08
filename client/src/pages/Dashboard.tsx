@@ -1,7 +1,7 @@
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useDashboardStats } from "@/hooks/use-dashboard";
-import { Users, Package, Wrench, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, Package, Wrench, DollarSign, ArrowUpRight, ArrowDownRight, UserPlus } from "lucide-react";
 import { Currency } from "@/components/Currency";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,7 +19,7 @@ const salesData = [
 
 function StatCard({ title, value, icon: Icon, description, trend }: any) {
   return (
-    <Card className="hover:shadow-md transition-shadow duration-300 overflow-hidden relative">
+    <Card className="rounded-2xl hover:shadow-lg transition-all duration-200 overflow-hidden relative bg-card/90 dark:bg-card/80 backdrop-blur-sm border-border/50">
       <div className="absolute right-0 top-0 h-24 w-24 bg-gradient-to-br from-primary/5 to-transparent rounded-bl-full -mr-4 -mt-4" />
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
@@ -63,9 +63,10 @@ export default function Dashboard() {
 
   return (
     <Layout title="Dashboard" description="Overview of your business performance">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {isLoading ? (
           <>
+            <StatSkeleton />
             <StatSkeleton />
             <StatSkeleton />
             <StatSkeleton />
@@ -98,14 +99,19 @@ export default function Dashboard() {
               title="Products in Stock" 
               value={stats?.totalProducts || 0} 
               icon={Package}
-              description={`${stats?.lowStockProducts || 0} low stock items`}
-              trend="down"
+              description={`${stats?.lowStockProducts ?? 0} low stock`}
+            />
+            <StatCard 
+              title="New Leads" 
+              value={stats?.newLeads ?? 0} 
+              icon={UserPlus}
+              description="enquiries this period"
             />
           </>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-6">
         <Card className="col-span-4 shadow-sm border-border/50">
           <CardHeader>
             <CardTitle>Revenue Overview</CardTitle>

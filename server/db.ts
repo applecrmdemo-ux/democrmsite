@@ -1,14 +1,21 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-import * as schema from "@shared/schema";
+/**
+ * MongoDB connection for CRM demo.
+ * Uses MongoDB Atlas; overridable via MONGO_URI or MONGODB_URI.
+ */
+import mongoose from "mongoose";
 
-const { Pool } = pg;
+const ATLAS_URI =
+  "mongodb+srv://applecrmdemo_db_user:ireallydontknow@cluster0.eiailbv.mongodb.net/?appName=Cluster0";
+const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || ATLAS_URI;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+export async function connectDb(): Promise<void> {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log("[db] Connected to MongoDB");
+  } catch (err) {
+    console.error("[db] MongoDB connection error:", err);
+    throw err;
+  }
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+export { mongoose };

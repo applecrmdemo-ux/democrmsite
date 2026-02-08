@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { useRepairs, useCreateRepair, useUpdateRepair } from "@/hooks/use-repairs";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useCustomers } from "@/hooks/use-customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import { z } from "zod";
 
 const repairFormSchema = insertRepairSchema.extend({
   amount: z.coerce.number().min(0),
-  customerId: z.coerce.number().optional().nullable(), // Allow null
+  customerId: z.union([z.string(), z.number()]).optional().nullable(),
 });
 
 function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolean, onOpenChange: (open: boolean) => void }) {
@@ -28,6 +29,7 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
   const createMutation = useCreateRepair();
   const updateMutation = useUpdateRepair();
   const { data: customers } = useCustomers(); // For customer selection
+  const { canWrite, isTechnician } = usePermissions();
 
   const form = useForm<z.infer<typeof repairFormSchema>>({
     resolver: zodResolver(repairFormSchema),
@@ -38,7 +40,7 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
       deviceName: "",
       serialNumber: "",
       issueDescription: "",
-      status: "Pending",
+      status: "Received",
       technicianNotes: "",
       amount: 0,
     }
@@ -46,17 +48,22 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
 
   const onSubmit = async (data: z.infer<typeof repairFormSchema>) => {
     try {
-      const payload = {
-        ...data,
-        amount: Math.round(data.amount * 100), // dollars to cents
-        customerId: data.customerId ? Number(data.customerId) : null,
-      };
+      let payload: Record<string, unknown>;
+      if (repair && isTechnician) {
+        payload = { status: data.status, technicianNotes: data.technicianNotes ?? "" };
+      } else {
+        payload = {
+          ...data,
+          amount: Math.round(data.amount * 100),
+          customerId: data.customerId != null && data.customerId !== "" ? String(data.customerId) : null,
+        };
+      }
 
       if (repair) {
-        await updateMutation.mutateAsync({ id: repair.id, ...payload });
+        await updateMutation.mutateAsync({ id: String(repair.id), ...payload } as any);
         toast({ title: "Updated", description: "Repair ticket updated" });
       } else {
-        await createMutation.mutateAsync(payload);
+        await createMutation.mutateAsync(payload as any);
         toast({ title: "Created", description: "Repair ticket created" });
       }
       onOpenChange(false);
@@ -66,16 +73,22 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
     }
   };
 
+  const technicianLimited = repair && isTechnician;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{repair ? "Update Repair Ticket" : "New Repair Ticket"}</DialogTitle>
-          <DialogDescription>Track device issues and status.</DialogDescription>
+          <DialogDescription>
+            {technicianLimited ? "Update status and notes only." : "Track device issues and status."}
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            {!technicianLimited && (
+              <>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -126,6 +139,8 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
                 </FormItem>
               )}
             />
+              </>
+            )}
 
             <FormField
               control={form.control}
@@ -140,9 +155,11 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Received">Received</SelectItem>
+                      <SelectItem value="Diagnosing">Diagnosing</SelectItem>
+                      <SelectItem value="In Repair">In Repair</SelectItem>
                       <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="Delivered">Delivered</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -150,18 +167,21 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="issueDescription"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Issue Description</FormLabel>
-                  <FormControl><Textarea placeholder="Broken screen, won't turn on..." {...field} value={field.value || ""} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!technicianLimited && (
+              <FormField
+                control={form.control}
+                name="issueDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Issue Description</FormLabel>
+                    <FormControl><Textarea placeholder="Broken screen, won't turn on..." {...field} value={field.value || ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
+            {!technicianLimited && (
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -175,6 +195,7 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
                 )}
               />
             </div>
+            )}
             
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -187,7 +208,7 @@ function RepairForm({ repair, open, onOpenChange }: { repair?: any, open: boolea
   );
 }
 
-function KanbanColumn({ title, status, repairs, onEdit }: any) {
+function KanbanColumn({ title, status, repairs, onEdit, canEdit }: { title: string; status: string; repairs: any[]; onEdit: (r: any) => void; canEdit: boolean }) {
   const filtered = repairs?.filter((r: any) => r.status === status) || [];
   
   return (
@@ -201,8 +222,8 @@ function KanbanColumn({ title, status, repairs, onEdit }: any) {
         {filtered.map((repair: any) => (
           <Card 
             key={repair.id} 
-            className="cursor-pointer hover:shadow-md transition-all hover:border-primary/20"
-            onClick={() => onEdit(repair)}
+            className={canEdit ? "cursor-pointer hover:shadow-md transition-all hover:border-primary/20" : ""}
+            onClick={canEdit ? () => onEdit(repair) : undefined}
           >
             <CardHeader className="pb-2 pt-4 px-4">
               <div className="flex justify-between items-start">
@@ -238,34 +259,35 @@ export default function Repairs() {
   const { data: repairs, isLoading } = useRepairs();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingRepair, setEditingRepair] = useState<any>(null);
+  const { canWrite, isTechnician, isCustomer, customerId, username } = usePermissions();
+
+  const filteredRepairs = useMemo(() => {
+    if (!repairs) return [];
+    if (isTechnician) {
+      return repairs.filter((r) => (r.technicianId ?? null) === username);
+    }
+    if (isCustomer && customerId) {
+      return repairs.filter((r) => (r.customerId ?? null) === customerId);
+    }
+    return repairs;
+  }, [repairs, isTechnician, isCustomer, customerId, username]);
 
   return (
     <Layout title="Repairs" description="Track repair jobs and status">
-      <div className="flex justify-end mb-6">
-        <Button onClick={() => setIsCreateOpen(true)} className="shadow-lg shadow-primary/20">
-          <Plus className="mr-2 h-4 w-4" /> New Ticket
-        </Button>
-      </div>
+      {canWrite("repairs") && !isTechnician && (
+        <div className="flex justify-end mb-6">
+          <Button onClick={() => setIsCreateOpen(true)} className="shadow-lg shadow-primary/20">
+            <Plus className="mr-2 h-4 w-4" /> New Ticket
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6 overflow-x-auto pb-4">
-        <KanbanColumn 
-          title="Pending" 
-          status="Pending" 
-          repairs={repairs} 
-          onEdit={setEditingRepair} 
-        />
-        <KanbanColumn 
-          title="In Progress" 
-          status="In Progress" 
-          repairs={repairs} 
-          onEdit={setEditingRepair} 
-        />
-        <KanbanColumn 
-          title="Completed" 
-          status="Completed" 
-          repairs={repairs} 
-          onEdit={setEditingRepair} 
-        />
+        <KanbanColumn title="Received" status="Received" repairs={filteredRepairs} onEdit={setEditingRepair} canEdit={canWrite("repairs")} />
+        <KanbanColumn title="Diagnosing" status="Diagnosing" repairs={filteredRepairs} onEdit={setEditingRepair} canEdit={canWrite("repairs")} />
+        <KanbanColumn title="In Repair" status="In Repair" repairs={filteredRepairs} onEdit={setEditingRepair} canEdit={canWrite("repairs")} />
+        <KanbanColumn title="Completed" status="Completed" repairs={filteredRepairs} onEdit={setEditingRepair} canEdit={canWrite("repairs")} />
+        <KanbanColumn title="Delivered" status="Delivered" repairs={filteredRepairs} onEdit={setEditingRepair} canEdit={canWrite("repairs")} />
       </div>
 
       <RepairForm open={isCreateOpen} onOpenChange={setIsCreateOpen} />

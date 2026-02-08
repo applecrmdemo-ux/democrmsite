@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
-import { useOrders, useCreateOrder } from "@/hooks/use-orders";
+import { useOrders, useCreateOrder, useOrderInvoice } from "@/hooks/use-orders";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useCustomers } from "@/hooks/use-customers";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Plus, ShoppingCart, Trash2, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Currency } from "@/components/Currency";
@@ -21,31 +22,29 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean, onOpenChange
   const { data: products } = useProducts();
   
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
-  const [cart, setCart] = useState<{productId: number, quantity: number}[]>([]);
+  const [cart, setCart] = useState<{ productId: string; quantity: number }[]>([]);
 
-  // Calculate totals
   const cartTotal = cart.reduce((acc, item) => {
-    const product = products?.find(p => p.id === item.productId);
+    const product = products?.find((p) => p.id === item.productId);
     return acc + (product ? product.price * item.quantity : 0);
   }, 0);
 
   const handleAddToCart = (productId: string) => {
-    const id = Number(productId);
-    const existing = cart.find(i => i.productId === id);
+    const existing = cart.find((i) => i.productId === productId);
     if (existing) {
-      setCart(cart.map(i => i.productId === id ? { ...i, quantity: i.quantity + 1 } : i));
+      setCart(cart.map((i) => (i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i)));
     } else {
-      setCart([...cart, { productId: id, quantity: 1 }]);
+      setCart([...cart, { productId, quantity: 1 }]);
     }
   };
 
-  const handleRemoveFromCart = (productId: number) => {
-    setCart(cart.filter(i => i.productId !== productId));
+  const handleRemoveFromCart = (productId: string) => {
+    setCart(cart.filter((i) => i.productId !== productId));
   };
 
-  const updateQuantity = (productId: number, qty: number) => {
+  const updateQuantity = (productId: string, qty: number) => {
     if (qty < 1) return;
-    setCart(cart.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
+    setCart(cart.map((i) => (i.productId === productId ? { ...i, quantity: qty } : i)));
   };
 
   const handleSubmit = async () => {
@@ -60,8 +59,8 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean, onOpenChange
 
     try {
       await createMutation.mutateAsync({
-        customerId: Number(selectedCustomer),
-        items: cart
+        customerId: selectedCustomer,
+        items: cart,
       });
       toast({ title: "Success", description: "Order created successfully" });
       onOpenChange(false);
@@ -167,17 +166,62 @@ function CreateOrderDialog({ open, onOpenChange }: { open: boolean, onOpenChange
   );
 }
 
+function InvoiceDialog({ orderId, open, onOpenChange }: { orderId: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { data: invoice, isLoading } = useOrderInvoice(open ? orderId : null);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Order Invoice</DialogTitle>
+          <DialogDescription>Order #{orderId}</DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : invoice ? (
+          <div className="space-y-3 text-sm">
+            {invoice.customer && <p><span className="font-medium">Customer:</span> {invoice.customer.name}</p>}
+            <p><span className="font-medium">Total:</span> <Currency amount={invoice.total} /></p>
+            <p><span className="font-medium">Payment:</span> {invoice.paymentStatus || "Pending"}</p>
+            {invoice.items?.length ? (
+              <div className="border rounded p-2 mt-2">
+                {invoice.items.map((item: any, i: number) => (
+                  <div key={i} className="flex justify-between py-1">
+                    <span>{item.product?.name ?? item.productId}</span>
+                    <span>{item.quantity} × <Currency amount={item.product?.price ?? 0} /></span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Orders() {
   const { data: orders, isLoading } = useOrders();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [invoiceOrderId, setInvoiceOrderId] = useState<string | null>(null);
+  const { canWrite, isCustomer, customerId } = usePermissions();
+
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    if (isCustomer && customerId) {
+      return orders.filter((o) => o.customerId === customerId);
+    }
+    return orders;
+  }, [orders, isCustomer, customerId]);
 
   return (
     <Layout title="Orders" description="Sales history and new orders">
-      <div className="flex justify-end mb-6">
-        <Button onClick={() => setIsCreateOpen(true)} className="shadow-lg shadow-primary/20">
-          <Plus className="mr-2 h-4 w-4" /> New Order
-        </Button>
-      </div>
+      {canWrite("sales") && (
+        <div className="flex justify-end mb-6">
+          <Button onClick={() => setIsCreateOpen(true)} className="shadow-lg shadow-primary/20">
+            <Plus className="mr-2 h-4 w-4" /> New Order
+          </Button>
+        </div>
+      )}
 
       <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
@@ -192,15 +236,22 @@ export default function Orders() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={4}>Loading...</TableCell></TableRow>
-            ) : orders?.length === 0 ? (
+            ) : filteredOrders?.length === 0 ? (
               <TableRow><TableCell colSpan={4} className="h-24 text-center">No orders yet.</TableCell></TableRow>
             ) : (
-              orders?.map(order => (
+              filteredOrders?.map(order => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-mono text-xs">#{order.id}</TableCell>
+                  <TableCell className="font-mono text-xs">#{order.id.slice(-6)}</TableCell>
                   <TableCell>{order.customerId}</TableCell>
-                  <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right font-medium"><Currency amount={order.total} /></TableCell>
+                  <TableCell>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setInvoiceOrderId(order.id)}>
+                        <FileText className="h-4 w-4 mr-1" /> Invoice
+                      </Button>
+                      <span className="font-medium"><Currency amount={order.total} /></span>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -209,6 +260,7 @@ export default function Orders() {
       </div>
 
       <CreateOrderDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      <InvoiceDialog orderId={invoiceOrderId} open={!!invoiceOrderId} onOpenChange={(open) => !open && setInvoiceOrderId(null)} />
     </Layout>
   );
 }

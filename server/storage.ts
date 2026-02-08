@@ -1,259 +1,281 @@
-import { db } from "./db";
-import { 
-  customers, products, repairs, appointments, orders, orderItems,
-  type Customer, type InsertCustomer,
-  type Product, type InsertProduct,
-  type Repair, type InsertRepair,
-  type Appointment, type InsertAppointment,
-  type Order, type InsertOrder,
-  type OrderItem, type InsertOrderItem,
-  type CreateOrderRequest,
-  type DashboardStats
+/**
+ * MongoDB storage layer using Mongoose.
+ * All ids are string (MongoDB ObjectId).
+ */
+import mongoose from "mongoose";
+import { Customer as CustomerModel, Product, Repair, Appointment, Order, Lead } from "./models";
+import { toApiDoc } from "@shared/schema";
+import type {
+  Customer,
+  InsertCustomer,
+  Product as ProductType,
+  InsertProduct,
+  Repair as RepairType,
+  InsertRepair,
+  Appointment as AppointmentType,
+  InsertAppointment,
+  Order as OrderType,
+  Lead as LeadType,
+  InsertLead,
+  CreateOrderRequest,
+  DashboardStats,
 } from "@shared/schema";
-import { eq, like, desc, sql, and, gte, lt } from "drizzle-orm";
 
-export interface IStorage {
-  // Customers
-  getCustomers(search?: string): Promise<Customer[]>;
-  getCustomer(id: number): Promise<Customer | undefined>;
-  createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
-  deleteCustomer(id: number): Promise<void>;
-
-  // Products
-  getProducts(search?: string, lowStock?: boolean): Promise<Product[]>;
-  getProduct(id: number): Promise<Product | undefined>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined>;
-  deleteProduct(id: number): Promise<void>;
-
-  // Repairs
-  getRepairs(search?: string, status?: string): Promise<Repair[]>;
-  getRepair(id: number): Promise<Repair | undefined>;
-  createRepair(repair: InsertRepair): Promise<Repair>;
-  updateRepair(id: number, repair: Partial<InsertRepair>): Promise<Repair | undefined>;
-  deleteRepair(id: number): Promise<void>;
-
-  // Appointments
-  getAppointments(): Promise<Appointment[]>;
-  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
-  deleteAppointment(id: number): Promise<void>;
-
-  // Orders
-  getOrders(): Promise<Order[]>;
-  createOrder(orderRequest: CreateOrderRequest): Promise<Order>;
-
-  // Dashboard
-  getDashboardStats(): Promise<DashboardStats>;
+function idToObjectId(id: string | number): mongoose.Types.ObjectId | null {
+  if (id == null) return null;
+  if (typeof id === "number") return null;
+  if (mongoose.Types.ObjectId.isValid(id)) return new mongoose.Types.ObjectId(id);
+  return null;
 }
 
-export class DatabaseStorage implements IStorage {
-  // Customers
+export const storage = {
   async getCustomers(search?: string): Promise<Customer[]> {
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      return await db.select().from(customers)
-        .where(
-          sql`lower(${customers.name}) LIKE ${searchLower} OR lower(${customers.email}) LIKE ${searchLower}`
-        );
+    const filter: Record<string, unknown> = {};
+    if (search && search.trim()) {
+      const re = new RegExp(search.trim(), "i");
+      filter.$or = [
+        { name: re },
+        { email: re },
+        { phone: re },
+      ];
     }
-    return await db.select().from(customers).orderBy(desc(customers.createdAt));
-  }
+    const list = await CustomerModel.find(filter).sort({ createdAt: -1 }).lean();
+    return list.map((d: any) => toApiDoc({ ...d, _id: d._id }));
+  },
 
-  async getCustomer(id: number): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
-    return customer;
-  }
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await CustomerModel.findById(id).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as Customer;
+  },
 
-  async createCustomer(customer: InsertCustomer): Promise<Customer> {
-    const [newCustomer] = await db.insert(customers).values(customer).returning();
-    return newCustomer;
-  }
-
-  async updateCustomer(id: number, updates: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const [updated] = await db.update(customers)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(customers.id, id))
-      .returning();
-    return updated;
-  }
-
-  async deleteCustomer(id: number): Promise<void> {
-    await db.delete(customers).where(eq(customers.id, id));
-  }
-
-  // Products
-  async getProducts(search?: string, lowStock?: boolean): Promise<Product[]> {
-    let query = db.select().from(products);
-    
-    const conditions = [];
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      conditions.push(sql`lower(${products.name}) LIKE ${searchLower}`);
+  async createCustomer(data: InsertCustomer): Promise<Customer> {
+    const payload: Record<string, unknown> = { ...data };
+    if ((data as any).warrantyExpiry) {
+      payload.warrantyExpiry = new Date((data as any).warrantyExpiry);
     }
-    if (lowStock) {
-      conditions.push(lt(products.stock, 5));
+    const doc = await CustomerModel.create(payload);
+    return toApiDoc(doc) as Customer;
+  },
+
+  async updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const payload = { ...data } as any;
+    if (payload.warrantyExpiry !== undefined) payload.warrantyExpiry = new Date(payload.warrantyExpiry);
+    const doc = await CustomerModel.findByIdAndUpdate(id, { $set: payload }, { new: true }).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as Customer;
+  },
+
+  async deleteCustomer(id: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) await CustomerModel.findByIdAndDelete(id);
+  },
+
+  async getProducts(search?: string, lowStock?: boolean): Promise<ProductType[]> {
+    const filter: Record<string, unknown> = {};
+    if (search && search.trim()) {
+      filter.name = new RegExp(search.trim(), "i");
     }
+    if (lowStock) filter.stock = { $lt: 5 };
+    const list = await Product.find(filter).sort({ name: 1 }).lean();
+    return list.map((d: any) => toApiDoc({ ...d, _id: d._id }));
+  },
 
-    if (conditions.length > 0) {
-      // @ts-ignore - weird drizzle typing with dynamic where
-      return await query.where(and(...conditions)).orderBy(products.name);
+  async getProduct(id: string): Promise<ProductType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Product.findById(id).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as ProductType;
+  },
+
+  async createProduct(data: InsertProduct): Promise<ProductType> {
+    const doc = await Product.create(data);
+    return toApiDoc(doc) as ProductType;
+  },
+
+  async updateProduct(id: string, data: Partial<InsertProduct>): Promise<ProductType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Product.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as ProductType;
+  },
+
+  async deleteProduct(id: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) await Product.findByIdAndDelete(id);
+  },
+
+  async getRepairs(search?: string, status?: string): Promise<RepairType[]> {
+    const filter: Record<string, unknown> = {};
+    if (search && search.trim()) {
+      const re = new RegExp(search.trim(), "i");
+      filter.$or = [{ deviceName: re }, { serialNumber: re }];
     }
-    
-    return await query.orderBy(products.name);
-  }
+    if (status) filter.status = status;
+    const list = await Repair.find(filter).sort({ createdAt: -1 }).lean();
+    return list.map((d: any) => ({
+      ...toApiDoc({ ...d, _id: d._id }),
+      customerId: d.customerId ? String(d.customerId) : null,
+    }));
+  },
 
-  async getProduct(id: number): Promise<Product | undefined> {
-    const [product] = await db.select().from(products).where(eq(products.id, id));
-    return product;
-  }
+  async getRepair(id: string): Promise<RepairType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Repair.findById(id).lean();
+    if (!doc) return undefined;
+    return { ...toApiDoc({ ...doc, _id: doc._id }), customerId: doc.customerId ? String(doc.customerId) : null } as RepairType;
+  },
 
-  async createProduct(product: InsertProduct): Promise<Product> {
-    const [newProduct] = await db.insert(products).values(product).returning();
-    return newProduct;
-  }
+  async createRepair(data: InsertRepair): Promise<RepairType> {
+    const payload: any = { ...data };
+    payload.customerId = data.customerId != null ? idToObjectId(String(data.customerId)) : undefined;
+    const doc = await Repair.create(payload);
+    return { ...toApiDoc(doc), customerId: doc.customerId ? String(doc.customerId) : null } as RepairType;
+  },
 
-  async updateProduct(id: number, updates: Partial<InsertProduct>): Promise<Product | undefined> {
-    const [updated] = await db.update(products)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(products.id, id))
-      .returning();
-    return updated;
-  }
+  async updateRepair(id: string, data: Partial<InsertRepair>): Promise<RepairType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const payload: any = { ...data };
+    if (data.customerId !== undefined) payload.customerId = data.customerId != null ? idToObjectId(String(data.customerId)) : null;
+    const doc = await Repair.findByIdAndUpdate(id, { $set: payload }, { new: true }).lean();
+    if (!doc) return undefined;
+    return { ...toApiDoc({ ...doc, _id: doc._id }), customerId: doc.customerId ? String(doc.customerId) : null } as RepairType;
+  },
 
-  async deleteProduct(id: number): Promise<void> {
-    await db.delete(products).where(eq(products.id, id));
-  }
+  async deleteRepair(id: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) await Repair.findByIdAndDelete(id);
+  },
 
-  // Repairs
-  async getRepairs(search?: string, status?: string): Promise<Repair[]> {
-    let query = db.select().from(repairs);
-    
-    const conditions = [];
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      conditions.push(sql`lower(${repairs.deviceName}) LIKE ${searchLower} OR lower(${repairs.serialNumber}) LIKE ${searchLower}`);
-    }
-    if (status) {
-      conditions.push(eq(repairs.status, status));
-    }
+  async getAppointments(): Promise<AppointmentType[]> {
+    const list = await Appointment.find({}).sort({ date: 1 }).lean();
+    return list.map((d: any) => ({ ...toApiDoc({ ...d, _id: d._id }), date: d.date ? new Date(d.date).toISOString() : (d as any).date }));
+  },
 
-    if (conditions.length > 0) {
-      // @ts-ignore
-      return await query.where(and(...conditions)).orderBy(desc(repairs.createdAt));
-    }
-    
-    return await query.orderBy(desc(repairs.createdAt));
-  }
+  async createAppointment(data: InsertAppointment): Promise<AppointmentType> {
+    const payload = { ...data, date: new Date(data.date as any) };
+    const doc = await Appointment.create(payload);
+    const out = toApiDoc(doc) as any;
+    out.date = doc.date ? new Date(doc.date).toISOString() : undefined;
+    return out;
+  },
 
-  async getRepair(id: number): Promise<Repair | undefined> {
-    const [repair] = await db.select().from(repairs).where(eq(repairs.id, id));
-    return repair;
-  }
+  async deleteAppointment(id: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) await Appointment.findByIdAndDelete(id);
+  },
 
-  async createRepair(repair: InsertRepair): Promise<Repair> {
-    const [newRepair] = await db.insert(repairs).values(repair).returning();
-    return newRepair;
-  }
+  async getOrders(): Promise<OrderType[]> {
+    const list = await Order.find({}).sort({ createdAt: -1 }).lean();
+    return list.map((d: any) => ({
+      ...toApiDoc({ ...d, _id: d._id }),
+      customerId: String(d.customerId),
+      items: (d.items || []).map((i: any) => ({ productId: String(i.productId), quantity: i.quantity })),
+    }));
+  },
 
-  async updateRepair(id: number, updates: Partial<InsertRepair>): Promise<Repair | undefined> {
-    const [updated] = await db.update(repairs)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(repairs.id, id))
-      .returning();
-    return updated;
-  }
+  async getOrderInvoice(id: string): Promise<OrderType & { customer?: Customer; items?: Array<{ productId: string; quantity: number; product?: ProductType }> } | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Order.findById(id).populate("customerId").populate("items.productId").lean();
+    if (!doc) return undefined;
+    const order: any = {
+      ...toApiDoc({ ...doc, _id: doc._id }),
+      customerId: String(doc.customerId),
+      items: (doc.items || []).map((i: any) => ({
+        productId: String(i.productId?._id || i.productId),
+        quantity: i.quantity,
+        product: i.productId && typeof i.productId === "object" ? toApiDoc(i.productId) : undefined,
+      })),
+    };
+    if (doc.customerId && typeof doc.customerId === "object") order.customer = toApiDoc(doc.customerId);
+    return order;
+  },
 
-  async deleteRepair(id: number): Promise<void> {
-    await db.delete(repairs).where(eq(repairs.id, id));
-  }
-
-  // Appointments
-  async getAppointments(): Promise<Appointment[]> {
-    return await db.select().from(appointments).orderBy(appointments.date);
-  }
-
-  async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
-    const [newAppointment] = await db.insert(appointments).values(appointment).returning();
-    return newAppointment;
-  }
-
-  async deleteAppointment(id: number): Promise<void> {
-    await db.delete(appointments).where(eq(appointments.id, id));
-  }
-
-  // Orders
-  async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders).orderBy(desc(orders.createdAt));
-  }
-
-  async createOrder(orderRequest: CreateOrderRequest): Promise<Order> {
-    // Transaction-like logic (though not strict transaction for simplicity in this demo unless needed)
-    // 1. Calculate total and verify stock
+  async createOrder(req: CreateOrderRequest): Promise<OrderType> {
+    const customerId = idToObjectId(String(req.customerId));
+    if (!customerId) throw new Error("Invalid customer");
     let total = 0;
-    
-    // We need to fetch products to get prices and check stock
-    for (const item of orderRequest.items) {
-      const product = await this.getProduct(item.productId);
+    const items: Array<{ productId: mongoose.Types.ObjectId; quantity: number }> = [];
+    for (const item of req.items) {
+      const pid = idToObjectId(String(item.productId));
+      if (!pid) throw new Error(`Product ${item.productId} not found`);
+      const product = await Product.findById(pid).lean();
       if (!product) throw new Error(`Product ${item.productId} not found`);
       if (product.stock < item.quantity) throw new Error(`Insufficient stock for ${product.name}`);
-      
       total += product.price * item.quantity;
+      items.push({ productId: pid, quantity: item.quantity });
     }
-
-    // 2. Reduce stock
-    for (const item of orderRequest.items) {
-      const product = await this.getProduct(item.productId);
-      if (product) {
-        await this.updateProduct(product.id, { stock: product.stock - item.quantity });
-      }
+    for (const item of items) {
+      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
     }
-
-    // 3. Create Order
-    const [order] = await db.insert(orders).values({
-      customerId: orderRequest.customerId,
-      total: total
-    }).returning();
-
-    // 4. Create Order Items
-    for (const item of orderRequest.items) {
-      await db.insert(orderItems).values({
-        orderId: order.id,
-        productId: item.productId,
-        quantity: item.quantity
-      });
-    }
-
-    return order;
-  }
-
-  // Dashboard
-  async getDashboardStats(): Promise<DashboardStats> {
-    const [customerCount] = await db.select({ count: sql<number>`count(*)` }).from(customers);
-    const [productCount] = await db.select({ count: sql<number>`count(*)` }).from(products);
-    const [lowStockCount] = await db.select({ count: sql<number>`count(*)` }).from(products).where(lt(products.stock, 5));
-    const [activeRepairCount] = await db.select({ count: sql<number>`count(*)` }).from(repairs).where(eq(repairs.status, 'In Progress'));
-    
-    // Revenue logic
-    const [totalRevenueResult] = await db.select({ sum: sql<number>`sum(${orders.total})` }).from(orders);
-    
-    // Monthly revenue (simplified - just all time for now or mock if date filtering is complex in raw sql without helpers)
-    // Let's filter by current month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0,0,0,0);
-    
-    const [monthlyRevenueResult] = await db.select({ sum: sql<number>`sum(${orders.total})` }).from(orders).where(gte(orders.createdAt, startOfMonth));
-
+    const doc = await Order.create({ customerId, total, paymentStatus: req.paymentStatus || "Pending", items });
     return {
-      totalCustomers: Number(customerCount.count),
-      totalProducts: Number(productCount.count),
-      lowStockProducts: Number(lowStockCount.count),
-      activeRepairs: Number(activeRepairCount.count),
-      totalRevenue: Number(totalRevenueResult?.sum || 0),
-      monthlyRevenue: Number(monthlyRevenueResult?.sum || 0)
-    };
-  }
-}
+      ...toApiDoc(doc),
+      customerId: String(doc.customerId),
+      items: doc.items.map((i: any) => ({ productId: String(i.productId), quantity: i.quantity })),
+    } as OrderType;
+  },
 
-export const storage = new DatabaseStorage();
+  async getLeads(): Promise<LeadType[]> {
+    const list = await Lead.find({}).sort({ createdAt: -1 }).lean();
+    return list.map((d: any) => toApiDoc({ ...d, _id: d._id }));
+  },
+
+  async getLead(id: string): Promise<LeadType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Lead.findById(id).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as LeadType;
+  },
+
+  async createLead(data: InsertLead): Promise<LeadType> {
+    const doc = await Lead.create(data);
+    return toApiDoc(doc) as LeadType;
+  },
+
+  async updateLead(id: string, data: Partial<InsertLead>): Promise<LeadType | undefined> {
+    if (!mongoose.Types.ObjectId.isValid(id)) return undefined;
+    const doc = await Lead.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    if (!doc) return undefined;
+    return toApiDoc({ ...doc, _id: doc._id }) as LeadType;
+  },
+
+  async deleteLead(id: string): Promise<void> {
+    if (mongoose.Types.ObjectId.isValid(id)) await Lead.findByIdAndDelete(id);
+  },
+
+  async convertLead(id: string): Promise<{ customerId: string }> {
+    const lead = await Lead.findById(id).lean();
+    if (!lead) throw new Error("Lead not found");
+    const customer = await CustomerModel.create({
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      notes: `Converted from lead. Interest: ${lead.interest || ""}`,
+      segment: "New",
+    });
+    await Lead.findByIdAndUpdate(id, { $set: { status: "Converted" } });
+    return { customerId: String(customer._id) };
+  },
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    const [totalCustomers, totalProducts, lowStockProducts, activeRepairs, newLeads, orders, ordersThisMonth] = await Promise.all([
+      CustomerModel.countDocuments(),
+      Product.countDocuments(),
+      Product.countDocuments({ stock: { $lt: 5 } }),
+      Repair.countDocuments({ status: { $in: ["Received", "Diagnosing", "In Repair"] } }),
+      Lead.countDocuments({ status: "New" }),
+      Order.find({}).lean(),
+      Order.find({ createdAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } }).lean(),
+    ]);
+    const totalRevenue = orders.reduce((s: number, o: any) => s + (o.total || 0), 0);
+    const monthlyRevenue = ordersThisMonth.reduce((s: number, o: any) => s + (o.total || 0), 0);
+    return {
+      totalCustomers,
+      totalProducts,
+      lowStockProducts,
+      activeRepairs,
+      totalRevenue,
+      monthlyRevenue,
+      newLeads,
+    };
+  },
+};
