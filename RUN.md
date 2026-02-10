@@ -11,6 +11,7 @@
 ```powershell
 cd Customer-Realm-Manager
 npm install
+copy .env.example .env
 ```
 
 ## 2. Start MongoDB
@@ -74,7 +75,7 @@ Static files are served from `dist/public` when `NODE_ENV=production`.
 | Variable      | Default                          | Description           |
 |---------------|-----------------------------------|-----------------------|
 | PORT          | 5000                              | Backend port          |
-| MONGODB_URI   | mongodb://127.0.0.1:27017/crm-demo | MongoDB connection    |
+| MONGODB_URI   | (required)                        | MongoDB connection string (`mongodb://` or `mongodb+srv://`) |
 | CORS_ORIGIN   | (any localhost origin)            | Allowed frontend origin |
 | NODE_ENV      | development                       | development/production |
 
