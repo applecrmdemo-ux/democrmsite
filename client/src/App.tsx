@@ -16,11 +16,6 @@ import Orders from "@/pages/Orders";
 import Appointments from "@/pages/Appointments";
 import Leads from "@/pages/Leads";
 
-const FIRST_ROUTE_BY_ROLE: Record<string, string> = {
-  Technician: "/repairs",
-  Customer: "/appointments",
-};
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
@@ -43,11 +38,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function RoleRoute({ path, children }: { path: string; children: React.ReactNode }) {
   const { user } = useAuth();
   const role = user?.role ?? "Customer";
-
-  // Dashboard (/ or /dashboard): redirect Technician/Customer to their first allowed route
-  if ((path === "/" || path === "/dashboard") && FIRST_ROUTE_BY_ROLE[role]) {
-    return <Redirect to={FIRST_ROUTE_BY_ROLE[role]} />;
-  }
 
   if (!canAccessRoute(role, path)) {
     return <AccessRestricted />;

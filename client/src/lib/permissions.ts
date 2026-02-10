@@ -30,9 +30,9 @@ export const ROUTE_TO_RESOURCE: Record<string, Resource> = {
 const READ_MATRIX: Record<Role, Resource[]> = {
   Admin: ["customers", "sales", "repairs", "inventory", "analytics", "appointments", "leads"],
   Manager: ["customers", "sales", "repairs", "inventory", "analytics", "appointments"],
-  Sales: ["customers", "inventory", "sales", "leads"],
-  Technician: ["repairs"],
-  Customer: ["repairs", "appointments", "sales", "leads"],
+  Sales: ["customers", "inventory", "sales", "leads", "analytics"],
+  Technician: ["repairs", "appointments", "analytics"],
+  Customer: ["repairs", "appointments", "sales", "leads", "analytics"],
 };
 
 /** Write permissions by role (create/update) */
@@ -88,13 +88,13 @@ export function canAccessRoute(role: Role, path: string): boolean {
   return canRead(role, resource);
 }
 
-/** Landing path after login by role (Admin/Owner and Manager → dashboard, Sales → customers, Technician → /) */
+/** Landing path after login by role */
 export const LANDING_PATH_BY_ROLE: Record<Role, string> = {
   Admin: "/dashboard",
   Manager: "/dashboard",
-  Sales: "/customers",
-  Technician: "/",
-  Customer: "/appointments",
+  Sales: "/dashboard",
+  Technician: "/dashboard",
+  Customer: "/dashboard",
 };
 
 /** Customer sees only their own data - filtered client-side by customerId */
