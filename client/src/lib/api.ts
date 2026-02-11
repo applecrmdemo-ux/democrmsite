@@ -1,9 +1,19 @@
 /**
- * API base URL for backend. Use when frontend runs on different port (e.g. Vite 5173).
+ * API base URL for backend.
+ * Supports both Vite and CRA-style env variable names.
  */
-export const API_BASE = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000";
+const ENV_API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  (import.meta.env.REACT_APP_API_URL as string | undefined)?.trim() ||
+  "";
+
+const DEFAULT_PROD_API_BASE = "https://democrmsite-3.onrender.com";
+
+export const API_BASE = ENV_API_BASE || (import.meta.env.DEV ? "http://localhost:5000" : DEFAULT_PROD_API_BASE);
+
+export const hasConfiguredApiBase = Boolean(ENV_API_BASE);
 
 export function apiUrl(path: string): string {
   const p = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE}${p}`;
+  return `${API_BASE.replace(/\/$/, "")}${p}`;
 }
