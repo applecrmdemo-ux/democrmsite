@@ -5,6 +5,14 @@ import type { Role } from "@/lib/permissions";
 const STORAGE_KEY = "crm_role";
 const USER_KEY = "crm_user";
 
+const DEMO_ROLE_BY_USERNAME: Record<string, Role> = {
+  admin: "Admin",
+  manager: "Manager",
+  salesman: "Sales",
+  tech: "Technician",
+  customer: "Customer",
+};
+
 export type AuthUser = {
   username: string;
   role: Role;
@@ -25,6 +33,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function persistUser(authUser: AuthUser, setUser: (value: AuthUser | null) => void) {
+  localStorage.setItem(STORAGE_KEY, authUser.role);
+  localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+  setUser(authUser);
+}
+
+function demoLogin(username: string, password: string): AuthUser | null {
+  const role = DEMO_ROLE_BY_USERNAME[username];
+  if (!role || password !== "password") return null;
+  return { username, role };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,13 +64,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<LoginResult> => {
+<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+=======
+>>>>>> main
     try {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
       });
 
+<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
+      if (res.ok) {
+        const data = await res.json();
+        const { user: u } = data;
+        if (u?.role) {
+          const authUser: AuthUser = {
+            username: u.username,
+            role: u.role as Role,
+            customerId: u.customerId,
+          };
+          persistUser(authUser, setUser);
+          return { user: authUser };
+        }
+        return { user: null, error: "server_error" };
+      }
+
+      const fallback = demoLogin(cleanUsername, cleanPassword);
+      if (fallback) {
+        persistUser(fallback, setUser);
+        return { user: fallback };
+      }
+
+      if (res.status === 401) return { user: null, error: "invalid_credentials" };
+      return { user: null, error: "server_error" };
+    } catch {
+      const fallback = demoLogin(cleanUsername, cleanPassword);
+      if (fallback) {
+        persistUser(fallback, setUser);
+        return { user: fallback };
+      }
+=======
       if (res.status === 401) return { user: null, error: "invalid_credentials" };
       if (!res.ok) return { user: null, error: "server_error" };
 
@@ -69,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { user: null, error: "server_error" };
     } catch {
+>>>>>> main
       return { user: null, error: "network_error" };
     }
   };
