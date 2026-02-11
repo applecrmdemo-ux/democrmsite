@@ -3,7 +3,6 @@
   "outputDirectory": "dist",
   "framework": null,
   "routes": [
-    { "src": "^/api/(.*)", "dest": "/api/$1" },
-    { "src": "/((?!api/)[^.]+)", "dest": "/", "status": 200 }
+    { "src": "/[^.]+", "dest": "/", "status": 200 }
   ]
 }

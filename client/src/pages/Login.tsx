@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { API_BASE, hasConfiguredApiBase } from "@/lib/api";
 import { LANDING_PATH_BY_ROLE } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,11 +85,6 @@ export default function Login() {
               />
             </div>
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
-            {!hasConfiguredApiBase && !import.meta.env.DEV && (
-              <p className="text-xs text-amber-600">
-                API URL not configured. Current API base resolves to: <code>{API_BASE || "(same-origin)"}</code>
-              </p>
-            )}
             <Button type="submit" className="w-full h-11" disabled={pending}>
               {pending ? "Signing in..." : "Sign in"}
             </Button>
