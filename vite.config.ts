@@ -27,6 +27,7 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  envPrefix: ["VITE_", "REACT_APP_"],
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,

@@ -20,13 +20,28 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setPending(true);
-    const authUser = await login(username.trim(), password);
+
+    const result = await login(username.trim(), password);
+
     setPending(false);
-    if (authUser) {
-      setLocation(LANDING_PATH_BY_ROLE[authUser.role]);
-    } else {
-      setError("Invalid username or password.");
+    if (result.user) {
+      setLocation(LANDING_PATH_BY_ROLE[result.user.role]);
+      return;
     }
+
+    if (result.error === "invalid_credentials") {
+      setError("Invalid username or password.");
+      return;
+    }
+
+    if (result.error === "network_error") {
+      setError(
+        "Cannot reach backend API. Set VITE_API_URL (or REACT_APP_API_URL) in Vercel to your Render backend URL.",
+      );
+      return;
+    }
+
+    setError("Login failed due to a server error. Please try again.");
   };
 
   return (
@@ -69,9 +84,7 @@ export default function Login() {
                 className="h-11"
               />
             </div>
-            {error && (
-              <p className="text-sm text-destructive font-medium">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive font-medium">{error}</p>}
             <Button type="submit" className="w-full h-11" disabled={pending}>
               {pending ? "Signing in..." : "Sign in"}
             </Button>
