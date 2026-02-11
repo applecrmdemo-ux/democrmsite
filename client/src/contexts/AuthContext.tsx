@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { apiUrl } from "@/lib/api";
 import type { Role } from "@/lib/permissions";
 
 const STORAGE_KEY = "crm_role";
@@ -26,25 +25,50 @@ export type LoginResult = {
 
 type AuthContextValue = {
   user: AuthUser | null;
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+  loginAsRole: (role: Role) => AuthUser;
+=======
   login: (username: string, password: string) => Promise<LoginResult>;
+ >>>>>>> main
   logout: () => void;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+function roleToUsername(role: Role): string {
+  switch (role) {
+    case "Admin":
+      return "admin";
+    case "Manager":
+      return "manager";
+    case "Sales":
+      return "salesman";
+    case "Technician":
+      return "tech";
+    case "Customer":
+      return "customer";
+  }
+}
+
+=======
+ >>>>>>> main
 function persistUser(authUser: AuthUser, setUser: (value: AuthUser | null) => void) {
   localStorage.setItem(STORAGE_KEY, authUser.role);
   localStorage.setItem(USER_KEY, JSON.stringify(authUser));
   setUser(authUser);
 }
 
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+=======
 function demoLogin(username: string, password: string): AuthUser | null {
   const role = DEMO_ROLE_BY_USERNAME[username];
   if (!role || password !== "password") return null;
   return { username, role };
 }
 
+ >>>>>>> main
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,13 +87,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+  const loginAsRole = (role: Role): AuthUser => {
+    const authUser: AuthUser = {
+      role,
+      username: roleToUsername(role),
+      customerId: role === "Customer" ? "demo-customer" : undefined,
+    };
+    persistUser(authUser, setUser);
+    return authUser;
+=======
   const login = async (username: string, password: string): Promise<LoginResult> => {
-<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
+ <<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
 =======
->>>>>> main
+ >>>>>> main
     try {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
@@ -77,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
       });
 
-<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
+ <<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
       if (res.ok) {
         const data = await res.json();
         const { user: u } = data;
@@ -126,9 +160,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { user: null, error: "server_error" };
     } catch {
->>>>>> main
+ >>>>>> main
       return { user: null, error: "network_error" };
     }
+ >>>>>>> main
   };
 
   const logout = () => {
@@ -138,7 +173,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   };
 
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+  return <AuthContext.Provider value={{ user, loginAsRole, logout, isLoading }}>{children}</AuthContext.Provider>;
+=======
   return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>;
+ >>>>>>> main
 }
 
 export function useAuth() {

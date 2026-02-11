@@ -1,25 +1,34 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { LANDING_PATH_BY_ROLE } from "@/lib/permissions";
+import { LANDING_PATH_BY_ROLE, type Role } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench } from "lucide-react";
 
+const ROLE_OPTIONS: Array<{ role: Role; label: string }> = [
+  { role: "Admin", label: "Admin" },
+  { role: "Manager", label: "Manager" },
+  { role: "Sales", label: "Salesman" },
+  { role: "Technician", label: "Technician" },
+  { role: "Customer", label: "Customer" },
+];
+
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [selectedRole, setSelectedRole] = useState<Role>("Admin");
   const [pending, setPending] = useState(false);
-  const { login } = useAuth();
+  const { loginAsRole } = useAuth();
   const [, setLocation] = useLocation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setPending(true);
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+    const authUser = loginAsRole(selectedRole);
+    setPending(false);
+    setLocation(LANDING_PATH_BY_ROLE[authUser.role]);
+=======
 
     const result = await login(username.trim(), password);
 
@@ -42,6 +51,7 @@ export default function Login() {
     }
 
     setError("Login failed due to a server error. Please try again.");
+ >>>>>>> main
   };
 
   return (
@@ -54,43 +64,40 @@ export default function Login() {
             </div>
           </div>
           <CardTitle className="text-2xl font-semibold">Tech CRM</CardTitle>
-          <CardDescription>Sign in with your demo credentials</CardDescription>
+          <CardDescription>Choose a role and continue directly</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="e.g. admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                required
-                className="h-11"
-              />
+            <div className="space-y-3">
+              <Label>Select role</Label>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                {ROLE_OPTIONS.map((option) => (
+                  <label key={option.role} className="flex items-center gap-3 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name="role"
+                      value={option.role}
+                      checked={selectedRole === option.role}
+                      onChange={() => setSelectedRole(option.role)}
+                      className="h-4 w-4"
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-                className="h-11"
-              />
-            </div>
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
+
+=======
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
+ >>>>>>> main
             <Button type="submit" className="w-full h-11" disabled={pending}>
-              {pending ? "Signing in..." : "Sign in"}
+              {pending ? "Signing in..." : `Continue as ${selectedRole}`}
             </Button>
           </form>
+
           <p className="text-xs text-muted-foreground mt-4 text-center">
-            Demo: admin / manager / salesman / tech / customer — password: password
+            No password required. Role-based demo access is enabled.
           </p>
         </CardContent>
       </Card>
