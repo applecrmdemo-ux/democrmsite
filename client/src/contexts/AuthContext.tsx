@@ -11,9 +11,14 @@ export type AuthUser = {
   customerId?: string;
 };
 
+export type LoginResult = {
+  user: AuthUser | null;
+  error?: "invalid_credentials" | "network_error" | "server_error";
+};
+
 type AuthContextValue = {
   user: AuthUser | null;
-  login: (username: string, password: string) => Promise<AuthUser | null>;
+  login: (username: string, password: string) => Promise<LoginResult>;
   logout: () => void;
   isLoading: boolean;
 };
@@ -38,14 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<AuthUser | null> => {
+  const login = async (username: string, password: string): Promise<LoginResult> => {
     try {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (!res.ok) return null;
+
+      if (res.status === 401) return { user: null, error: "invalid_credentials" };
+      if (!res.ok) return { user: null, error: "server_error" };
+
       const data = await res.json();
       const { user: u } = data;
       if (u?.role) {
@@ -57,11 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY, authUser.role);
         localStorage.setItem(USER_KEY, JSON.stringify(authUser));
         setUser(authUser);
-        return authUser;
+        return { user: authUser };
       }
-      return null;
+      return { user: null, error: "server_error" };
     } catch {
-      return null;
+      return { user: null, error: "network_error" };
     }
   };
 
@@ -72,11 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   };
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -1,11 +1,9 @@
 {
-  "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+  "outputDirectory": "dist",
+  "framework": null,
+  "routes": [
+    { "src": "^/api/(.*)", "dest": "/api/$1" },
+    { "src": "/((?!api/)[^.]+)", "dest": "/", "status": 200 }
   ]
 }
