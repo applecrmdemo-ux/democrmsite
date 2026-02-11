@@ -1,85 +1,30 @@
-# CRM Demo – Local Run Instructions
+# CRM Backend – Render Deployment Notes
 
-## Prerequisites
+## Runtime
+- Node.js: **18+** (compatible with MongoDB Node driver 6.7+ environments)
+- Entry: `index.js`
+- Start command: `npm start`
 
-- **Node.js** (v18+)
-- **MongoDB** running locally on default port `27017`
-- **Windows** (CMD or PowerShell)
+## Required Environment Variables
 
-## 1. Install dependencies
+```env
+MONGO_URI=mongodb+srv://applecrmdemo_db_user:ireallydontknow@cluster0.eiailbv.mongodb.net/applestorecrm
+PORT=5000
+```
 
-```powershell
-cd Customer-Realm-Manager
+## Local Backend Start
+
+```bash
 npm install
+MONGO_URI="mongodb+srv://applecrmdemo_db_user:ireallydontknow@cluster0.eiailbv.mongodb.net/applestorecrm" npm start
 ```
 
-## 2. Start MongoDB
+Server binds to:
+- `const PORT = process.env.PORT || 5000`
+- `app.listen(PORT, ...)` via `httpServer.listen(PORT, "0.0.0.0", ...)`
 
-Ensure MongoDB is running locally:
-
-- Default URI: `mongodb://127.0.0.1:27017`
-- Database used: `crm-demo` (created automatically)
-
-## 3. Start the backend (API)
-
-```powershell
-npm run server
-```
-
-Or:
-
-```powershell
-node --import tsx index.js
-```
-
-- API base: **http://localhost:5000**
-- Routes: **http://localhost:5000/api/...**
-- On first run, seed data is inserted if the DB is empty.
-
-## 4. Start the frontend (separate terminal)
-
-```powershell
-npm run dev
-```
-
-- App: **http://localhost:5173** (or next free port, e.g. 5174)
-- Uses API at `http://localhost:5000` (see `client/src/lib/api.ts`)
-
-## 5. Log in (demo credentials)
-
-| Username  | Password  | Role        |
-|-----------|-----------|-------------|
-| admin     | password  | Admin       |
-| salesman  | password  | Sales       |
-| tech      | password  | Technician  |
-| manager   | password  | Manager     |
-| customer  | password  | Customer    |
-
-## 6. Production build (optional)
-
-```powershell
-npm run build
-```
-
-Then run the server (serves API + built client):
-
-```powershell
-npm run start
-```
-
-Static files are served from `dist/public` when `NODE_ENV=production`.
-
-## Environment variables
-
-| Variable      | Default                          | Description           |
-|---------------|-----------------------------------|-----------------------|
-| PORT          | 5000                              | Backend port          |
-| MONGODB_URI   | mongodb://127.0.0.1:27017/crm-demo | MongoDB connection    |
-| CORS_ORIGIN   | (any localhost origin)            | Allowed frontend origin |
-| NODE_ENV      | development                       | development/production |
-
-## Troubleshooting
-
-- **"Failed to fetch" in browser:** Backend must be running on port 5000; frontend uses `http://localhost:5000` for API.
-- **MongoDB connection error:** Start MongoDB locally and confirm nothing else is using port 27017.
-- **Port in use:** Change `PORT` for the backend or use another port for Vite (it will try 5174, etc., if 5173 is busy).
+## Render
+This repo includes `render.yaml` configured for a **backend-only** web service:
+- No frontend build step required.
+- No static frontend serving required.
+- Backend API boot is independent of `dist/public`.

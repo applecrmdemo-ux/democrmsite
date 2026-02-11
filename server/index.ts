@@ -1,7 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
 import { connectDb } from "./db";
 
 const app = express();
@@ -78,12 +77,10 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(port, "0.0.0.0", () => {
-    log(`API serving on port ${port}`);
+  const PORT = process.env.PORT || "5000";
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log("Server running");
+    log(`API serving on port ${PORT}`);
   });
 })();
