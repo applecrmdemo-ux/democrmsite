@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { apiUrl } from "@/lib/api";
 import type { Role } from "@/lib/permissions";
 
 const STORAGE_KEY = "crm_role";
@@ -13,12 +12,33 @@ export type AuthUser = {
 
 type AuthContextValue = {
   user: AuthUser | null;
-  login: (username: string, password: string) => Promise<AuthUser | null>;
+  loginAsRole: (role: Role) => AuthUser;
   logout: () => void;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function roleToUsername(role: Role): string {
+  switch (role) {
+    case "Admin":
+      return "admin";
+    case "Manager":
+      return "manager";
+    case "Sales":
+      return "salesman";
+    case "Technician":
+      return "tech";
+    case "Customer":
+      return "customer";
+  }
+}
+
+function persistUser(authUser: AuthUser, setUser: (value: AuthUser | null) => void) {
+  localStorage.setItem(STORAGE_KEY, authUser.role);
+  localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+  setUser(authUser);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -38,31 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<AuthUser | null> => {
-    try {
-      const res = await fetch(apiUrl("/api/auth/login"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      const { user: u } = data;
-      if (u?.role) {
-        const authUser: AuthUser = {
-          username: u.username,
-          role: u.role as Role,
-          customerId: u.customerId,
-        };
-        localStorage.setItem(STORAGE_KEY, authUser.role);
-        localStorage.setItem(USER_KEY, JSON.stringify(authUser));
-        setUser(authUser);
-        return authUser;
-      }
-      return null;
-    } catch {
-      return null;
-    }
+  const loginAsRole = (role: Role): AuthUser => {
+    const authUser: AuthUser = {
+      role,
+      username: roleToUsername(role),
+      customerId: role === "Customer" ? "demo-customer" : undefined,
+    };
+    persistUser(authUser, setUser);
+    return authUser;
   };
 
   const logout = () => {
@@ -72,11 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   };
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, loginAsRole, logout, isLoading }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
