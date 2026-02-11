@@ -1,5 +1,8 @@
 /**
- * Backend entry point. Run with: node --import tsx index.js
- * Or: npm run server
+ * Backend entry point for Render deployment.
  */
+import dotenv from "dotenv";
+
+dotenv.config();
+
 import "./server/index.ts";

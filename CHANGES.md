@@ -9,7 +9,7 @@
   - `server` → `node --import tsx index.js` (API on port 5000)
   - `start` → `node --import tsx index.js`
   - Removed `db:push` (Drizzle).
-- **Database:** Replaced PostgreSQL + Drizzle with **MongoDB + Mongoose**. Connection: `mongodb://127.0.0.1:27017/crm-demo`. Removed `pg`, `drizzle-orm`, `drizzle-zod`, `connect-pg-simple`, `passport`, `passport-local`, `express-session`, `memorystore` from dependencies.
+- **Database:** Replaced PostgreSQL + Drizzle with **MongoDB + Mongoose**. Connection now sourced from `MONGO_URI` environment variable. Removed `pg`, `drizzle-orm`, `drizzle-zod`, `connect-pg-simple`, `passport`, `passport-local`, `express-session`, `memorystore` from dependencies.
 - **CORS:** Enabled for any `localhost` / `127.0.0.1` origin so Vite (e.g. 5173, 5174) can call the API.
 - **API base URL:** Frontend uses `http://localhost:5000` via `client/src/lib/api.ts` and `apiUrl()` in all hooks.
 - **Static serve:** In production, static files are served from `dist/public` (no Vite in backend; frontend and backend are separate in dev).
