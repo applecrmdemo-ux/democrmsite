@@ -64,9 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<LoginResult> => {
+<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
+=======
+>>>>>> main
     try {
       const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
       });
 
+<<<<<< codex/make-frontend-deployable-on-vercel-h7cq7u
       if (res.ok) {
         const data = await res.json();
         const { user: u } = data;
@@ -103,6 +107,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         persistUser(fallback, setUser);
         return { user: fallback };
       }
+=======
+      if (res.status === 401) return { user: null, error: "invalid_credentials" };
+      if (!res.ok) return { user: null, error: "server_error" };
+
+      const data = await res.json();
+      const { user: u } = data;
+      if (u?.role) {
+        const authUser: AuthUser = {
+          username: u.username,
+          role: u.role as Role,
+          customerId: u.customerId,
+        };
+        localStorage.setItem(STORAGE_KEY, authUser.role);
+        localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+        setUser(authUser);
+        return { user: authUser };
+      }
+      return { user: null, error: "server_error" };
+    } catch {
+>>>>>> main
       return { user: null, error: "network_error" };
     }
   };
