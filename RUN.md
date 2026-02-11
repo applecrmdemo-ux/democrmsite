@@ -1,7 +1,6 @@
 # CRM Backend – Render Deployment Notes
 
 ## Runtime
-- Node.js: **18+** (compatible with MongoDB Node driver 6.7+ environments)
 - Entry: `index.js`
 - Start command: `npm start`
 

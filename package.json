@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node --import tsx index.js",
     "server": "node --import tsx index.js",
-    "check": "tsc"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -94,6 +93,5 @@
     "bufferutil": "^4.0.8"
   },
   "engines": {
-    "node": ">=18"
   }
 }
