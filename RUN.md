@@ -1,7 +1,6 @@
 # CRM Backend – Render Deployment Notes
 
 ## Runtime
-- Node.js: **22.x** (aligned with `package.json` engines and current Render/Vercel runtime)
 - Entry: `index.js`
 - Start command: `npm start`
 
@@ -28,13 +27,3 @@ This repo includes `render.yaml` configured for a **backend-only** web service:
 - No frontend build step required.
 - No static frontend serving required.
 - Backend API boot is independent of `dist/public`.
-
-
-## Frontend Deployment (Vercel)
-- Vercel uses `npm run build`.
-- This repo now includes `vercel.json` with:
-  - `buildCommand: npm run build`
-  - `outputDirectory: dist/public`
-  - SPA fallback rewrites to `/index.html`
-- Set frontend env var in Vercel:
-  - `VITE_API_URL=https://<your-render-backend>.onrender.com`
