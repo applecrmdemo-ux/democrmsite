@@ -24,9 +24,34 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPending(true);
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
     const authUser = loginAsRole(selectedRole);
     setPending(false);
     setLocation(LANDING_PATH_BY_ROLE[authUser.role]);
+=======
+
+    const result = await login(username.trim(), password);
+
+    setPending(false);
+    if (result.user) {
+      setLocation(LANDING_PATH_BY_ROLE[result.user.role]);
+      return;
+    }
+
+    if (result.error === "invalid_credentials") {
+      setError("Invalid username or password.");
+      return;
+    }
+
+    if (result.error === "network_error") {
+      setError(
+        "Cannot reach backend API. Set VITE_API_URL (or REACT_APP_API_URL) in Vercel to your Render backend URL.",
+      );
+      return;
+    }
+
+    setError("Login failed due to a server error. Please try again.");
+ >>>>>>> main
   };
 
   return (
@@ -61,7 +86,11 @@ export default function Login() {
                 ))}
               </div>
             </div>
+ <<<<<<< codex/make-frontend-deployable-on-vercel-j99taj
 
+=======
+            {error && <p className="text-sm text-destructive font-medium">{error}</p>}
+ >>>>>>> main
             <Button type="submit" className="w-full h-11" disabled={pending}>
               {pending ? "Signing in..." : `Continue as ${selectedRole}`}
             </Button>
